@@ -1,0 +1,9 @@
+{
+    "extends": [
+        "@datenknoten/tslint-config"
+    ],
+    "rules": {
+        "file-header": [true, "@license MIT", "@license MIT"],
+        "newline-per-chained-call": [false]
+    }
+}
