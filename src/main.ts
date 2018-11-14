@@ -2,8 +2,13 @@
  * @license MIT
  */
 
-import { logger  } from 'bs-logger';
+import { logger } from 'bs-logger';
+import * as config from 'config';
 const sdk = require('matrix-js-sdk');
+
+if (typeof process.env.NODE_ENV === 'undefined' || process.env.NODE_ENV === '') {
+    process.env.NODE_ENV = 'development';
+}
 
 interface PublicRoomsResponse {
     chunk: RoomDefinition[];
@@ -25,8 +30,25 @@ interface RoomDefinition {
 (async function() {
     try {
         logger('Starting up…');
-        const client = sdk.createClient('https://matrix.org');
-        const rooms: PublicRoomsResponse = await client.publicRooms();
+        const client = sdk.createClient(config.get('server'));
+
+        const response = await client.loginWithPassword (
+            config.get('credentials.username'),
+            config.get('credentials.password'),
+        );
+
+        client._http.useAuthorizationHeader = true;
+        client._http.opts['accessToken'] = response.access_token;
+
+        const rooms: PublicRoomsResponse = await client.publicRooms({
+            server: 'matrix.org',
+            limit: 10,
+            include_all_networks: true,
+            filter: {
+                generic_search_term: 'Javascript in Jena',
+            },
+        });
+
         const jsInJena =
             rooms
             .chunk
@@ -44,9 +66,15 @@ interface RoomDefinition {
 
         logger('room', room);
 
+        await client.logout();
+
         process.exit(0);
     } catch (error) {
-        logger('An error happened', error);
+        logger('An error happened', {
+            name: error.name,
+            stack: error.stack,
+            error,
+        });
         process.exit(0);
     }
 })();
