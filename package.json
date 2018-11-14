@@ -10,6 +10,7 @@
     },
     "dependencies": {
         "bs-logger": "0.2.6",
+        "cross-fetch": "2.2.3",
         "config": "2.0.1",
         "matrix-js-sdk": "0.12.1"
     },

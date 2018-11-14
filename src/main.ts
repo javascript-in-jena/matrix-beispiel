@@ -4,50 +4,30 @@
 
 import { logger } from 'bs-logger';
 import * as config from 'config';
-const sdk = require('matrix-js-sdk');
+import { Client } from './sdk';
 
 if (typeof process.env.NODE_ENV === 'undefined' || process.env.NODE_ENV === '') {
     process.env.NODE_ENV = 'development';
-}
-
-interface PublicRoomsResponse {
-    chunk: RoomDefinition[];
-    total_room_count_estimate: number;
-    next_batch: string;
-}
-
-interface RoomDefinition {
-    room_id: string;
-    num_joined_members: number;
-    aliases: string[];
-    name?: string;
-    canonical_alias?: string;
-    world_readable: boolean;
-    guest_can_join: boolean;
 }
 
 // tslint:disable-next-line
 (async function() {
     try {
         logger('Starting up…');
-        const client = sdk.createClient(config.get('server'));
-
-        const response = await client.loginWithPassword (
+        const client = new Client(config.get('server'));
+        logger('Logging in…');
+        await client.loginWithCredentials (
             config.get('credentials.username'),
             config.get('credentials.password'),
         );
-
-        client._http.useAuthorizationHeader = true;
-        client._http.opts['accessToken'] = response.access_token;
-
-        const rooms: PublicRoomsResponse = await client.publicRooms({
+        logger('Successfully logged in…');
+        const rooms = await client.getPublicRooms({
             server: 'matrix.org',
             limit: 10,
-            include_all_networks: true,
-            filter: {
-                generic_search_term: 'Javascript in Jena',
-            },
+            searchTerm: 'Javascript in Jena',
         });
+
+        logger('Successfully fetch channel information');
 
         const jsInJena =
             rooms
@@ -61,13 +41,17 @@ interface RoomDefinition {
         if (typeof jsInJena === 'undefined') {
             throw new Error('Channel not found');
         }
-        logger('jsInJena room', jsInJena);
-        const room = await client.joinRoom(jsInJena.room_id);
 
-        logger('room', room);
+        logger(`joining ${jsInJena.room_id}`);
+        await client.joinRoom(jsInJena.room_id);
+
+        logger('Obtain list of joined rooms');
+        const joinedRooms = await client.getJoinedRooms();
+
+        logger('rooms', joinedRooms);
 
         await client.logout();
-
+        logger('Successfully logged out');
         process.exit(0);
     } catch (error) {
         logger('An error happened', {
